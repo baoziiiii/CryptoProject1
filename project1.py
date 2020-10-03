@@ -203,7 +203,6 @@ def crack2(crypt, N):
 sorted_frequency = OrderedDict(sorted(frequency.items(),key = lambda x:x[1]))
 
 
-
 def crack(crypt,N):
     crypt = list(map(str,crypt))
     set_of_crypt = set(crypt)
