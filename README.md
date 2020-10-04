@@ -25,7 +25,7 @@ Interactive mode if doesn't provide an input file. Must provide a plain text lon
 ```
 python3 crack.py -p
 ```
-Test1:
+Test1: (For convenience, use -p mode, so test1.txt is plaintext. Before submission, it should accept only cipher.)
 ```
 python3 crack.py -p test1.txt
 ```
