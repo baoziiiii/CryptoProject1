@@ -19,13 +19,13 @@ if enc:
     with open(input_file,'r') as f:
         plain = ' '.join(f.readlines())
     plain = re.sub(r'[^a-z]',' ',plain.lower())
-    plain = re.sub(r'\s+',' ',plain)
+    plain = re.sub(r'\s+',' ',plain).strip()
     key = pc.rand_key()
     print("Generated a random key:{}".format(key))
 
     crypt = pc.encrypt(plain, pc.get_keytable(key))
 
-    with open('cipher.txt','w') as f:
+    with open('cipher.txt','w+') as f:
         f.write(str(crypt))
     
     print("Cipher text saved in cipher.txt")

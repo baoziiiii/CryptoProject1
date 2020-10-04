@@ -617,6 +617,7 @@ def test1(crypt, gram_score = None):
     results = [0]*5
     for i in range(5):
         plain_to_check = dictionary_test1[i]
+        print(len(crypt))
         if len(plain_to_check) < len(crypt):
             continue
         # expected_fitness = Individual(crypt, key_length = K ,gram_score = gram_score, key = key, plaintext = plain_to_check).calcFitness()
@@ -645,10 +646,14 @@ if __name__ == "__main__":
     generation_limit = 1000000
     argc = len(sys.argv) 
     p_flag = False
+    test1_flag = False
     input_filename = None
     for arg in sys.argv[1:]:
-        if arg == '-p':
-            p_flag = True
+        if arg[0] == '-':
+            if arg[1] == 'p':
+                p_flag = True
+            elif arg[1] == 'T':
+                test1_flag = True
         elif arg.isdigit():
             generation_limit = int(arg)
         else:
@@ -678,7 +683,10 @@ if __name__ == "__main__":
         fprint("\nGenerated a random key:\n{}".format(key))
         fprint("\nCipher text encrypted by the key:\n{}\n".format(crypt))
         input("Press Enter to start cracking...")
-        test1(crypt)
+        if test1_flag:
+            test1(crypt)
+        else:
+            test2(crypt, generation_limit)
 
     else: # ciphertext only mode
         if input_filename :
@@ -694,7 +702,10 @@ if __name__ == "__main__":
             print(e)
             fprint("Invalid ciphertext")
             exit(0)
-        test2(crypt, generation_limit=generation_limit)
+        if test1_flag:
+            test1(crypt)
+        else:
+            test2(crypt, generation_limit=generation_limit)
 
 
 
