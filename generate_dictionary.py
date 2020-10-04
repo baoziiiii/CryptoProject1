@@ -2,8 +2,6 @@ import re
 from random import shuffle
 from random import randint
 
-
-
 lines = []
 with open("word.txt") as f:
     lines = f.readlines()
