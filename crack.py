@@ -79,6 +79,7 @@ def fprint(line):
 #     'and':5
 # }
 
+
 class Individual:
 
     permutation_cipher = Permutation_Cipher()
@@ -104,7 +105,7 @@ class Individual:
     def calcFitness(self):
         plain = self.decrypt()
         if self.plaintext == None:
-            self.fitness = self.calFitness2(plain)
+            self.fitness = self.calFitness_IoC(plain)
         else:
             self.fitness = self.calFitness3(plain)
         return self.fitness
@@ -117,6 +118,17 @@ class Individual:
                 p += plain[i+j]
                 if p in self.gram_score:
                     fitness +=  self.gram_score[p]
+        return fitness
+
+    def calFitness_IoC(self, plain):
+        fitness = 0.001
+        cnt = Counter(plain)
+        if ' instrumentations ' in plain:
+            for c,F in self.permutation_cipher.frequency.items():
+                f = 0 if c not in cnt else cnt[c]
+                f = f/len(plain)*105
+                fitness += (f-F)**2/F
+
         return fitness
     
     def calFitness3(self, plain):
@@ -531,7 +543,7 @@ class TranspositionGA:
         return best_guess, self.fittest.fitness, results
 
 
-
+plains = None
 
 # import gram from a text
 def import_gram(text):
@@ -553,10 +565,8 @@ def import_gram(text):
     return ugram_score,gram_score
 
 # import gram from word list
-def import_word_gram():
+def import_word_gram(words):
     gram_score = {}
-    with open('word.txt') as pf:
-        words = pf.readlines()
     words = [word.strip() for word in words]
     wordstr = ' '.join(words)
     eg = nltk.everygrams(wordstr,min_len=4,max_len=8)
@@ -577,14 +587,11 @@ def import_word_gram():
 
 
 
-with open('dictionary_test1.txt') as pf:
-    dictionary_test1 = pf.readlines()
-dictionary_test1 = [l.strip() for l in dictionary_test1]
 
 # import gram from dictionary_test1.txt
 def import_p_dict_gram(row_idx):
     gram_score = {}
-    line = dictionary_test1[row_idx]
+    line = plains[row_idx]
     eg = nltk.everygrams(line,min_len=6,max_len=10)
 
     fdist = nltk.FreqDist(eg)
@@ -603,20 +610,11 @@ def import_p_dict_gram(row_idx):
     return gram_score
     
 
-def rand_sentence(N):
-    with open('word.txt') as pf:
-        words = pf.readlines()
-    s = []
-    for _ in range(N):
-        i = randint(0,len(words)-1)
-        s.append(words[i].strip())
-    return " ".join(s)
-
 def test1(crypt, gram_score = None):
     K = 106
-    results = [0]*5
-    for i in range(5):
-        plain_to_check = dictionary_test1[i]
+    results = [0]*(len(plains))
+    for i in range(len(plains)):
+        plain_to_check = plains[i]
         print(len(crypt))
         if len(plain_to_check) < len(crypt):
             continue
@@ -628,14 +626,17 @@ def test1(crypt, gram_score = None):
         results[i] = fitness
     
     s = sum(results)
+    if s == 0:
+        fprint("Looks like the plaintexts you provided are not right. Double check the command.")
+        exit(0)
     for i,f in enumerate(results):
         fprint("Plain{}\tConfidence:\t{}".format(i,f/s))
 
-    fprint("\nMy Guess:\n{}".format(dictionary_test1[max(enumerate(results),key = lambda x:x[1])[0]]))
+    fprint("\nMy Guess:\n{}".format(plains[max(enumerate(results),key = lambda x:x[1])[0]]))
 
-def test2(crypt, generation_limit = 100000 ):
+def test2(words, crypt, generation_limit = 100000):
     K = 106
-    d = TranspositionGA(crypt, K, None , population_size = 40, gram_score = import_word_gram())
+    d = TranspositionGA(crypt, K, None , population_size = 40, gram_score = import_word_gram(words))
 
     # set generation_limit to the maximum attempts you want
     best_guess, fitness,_ = d.run(generation_limit = generation_limit, fitness_threshold = float('inf'),crossover_rate = 1, mutation_rate = 0.4 )
@@ -645,21 +646,46 @@ def test2(crypt, generation_limit = 100000 ):
 if __name__ == "__main__":
     generation_limit = 1000000
     argc = len(sys.argv) 
-    p_flag = False
-    test1_flag = False
+    a_flag = False
+    plaintext_flag = False
+    word_flag = False
     input_filename = None
+    dictionary_filename = None
+    
     for arg in sys.argv[1:]:
         if arg[0] == '-':
-            if arg[1] == 'p':
-                p_flag = True
-            elif arg[1] == 'T':
-                test1_flag = True
+            if arg[1] == 'a':
+                a_flag = True
+            elif arg[1] == 'p':
+                plaintext_flag  = True
+            elif arg[1] == 'w':
+                word_flag = True
+            else:
+                print("Invalid option.")
+                exit(0)
         elif arg.isdigit():
             generation_limit = int(arg)
         else:
-            input_filename = arg
+            if (plaintext_flag  == True or word_flag == True) and dictionary_filename == None:
+                dictionary_filename = arg
+            else:
+                input_filename = arg
 
-    if p_flag == True: # given-plaintext mode, key randomly generated, good for test
+    if plaintext_flag :
+        if not dictionary_filename:
+            print("No dictionary provided")
+            exit(0)
+        with open(dictionary_filename) as pf:
+            plains = list(map(str.strip, pf.readlines()))
+
+    if word_flag:
+        if not dictionary_filename:
+            print("No dictionary provided")
+            exit(0)
+        with open(dictionary_filename) as pf:
+            words = pf.readlines()
+
+    if a_flag == True: # given-plaintext mode, key randomly generated, good for test
         if input_filename :
             with open(input_filename,'r') as af:
                 plain = af.read()
@@ -683,10 +709,12 @@ if __name__ == "__main__":
         fprint("\nGenerated a random key:\n{}".format(key))
         fprint("\nCipher text encrypted by the key:\n{}\n".format(crypt))
         input("Press Enter to start cracking...")
-        if test1_flag:
+        if plaintext_flag :
             test1(crypt)
+        elif word_flag :
+            test2(words, crypt, generation_limit)
         else:
-            test2(crypt, generation_limit)
+            print("Not supported only ciphertext.")
 
     else: # ciphertext only mode
         if input_filename :
@@ -695,20 +723,17 @@ if __name__ == "__main__":
         else:
             crypt = input("Enter ciphtertext:\n").strip()
         try:
-            crypt = literal_eval(crypt)
-            if type(crypt) != list:
-                raise Exception()
+            crypt = list(map(int,crypt.split(",")))
+            # crypt = literal_eval(crypt)
+            # if type(crypt) != list:
+            #     raise Exception()
         except Exception as e:
             print(e)
             fprint("Invalid ciphertext")
             exit(0)
-        if test1_flag:
+        if plaintext_flag :
             test1(crypt)
+        elif word_flag :
+            test2(words, crypt, generation_limit=generation_limit)
         else:
-            test2(crypt, generation_limit=generation_limit)
-
-
-
-
-
-
+            print("Not supported only ciphertext.")

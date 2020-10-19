@@ -6,42 +6,70 @@ encdec_tool.py
 + -d decryption
 
 ### Usage
-The following command will generate a random key(print to the console) and use it to encrypt plain.txt. The cipher will be stored into 'cipher.txt'
+The following command will generate a random key(you must use -k to where to output the key) and use it to encrypt plain.txt. The cipher will be auto stored to 'cipher.enc'.
 ```
-python3 encdec_tool.py -e plain.txt  
+python3 encdec_tool.py -e plain.txt -k a.key
 ```
 
-The following command will decrypt by cipher and key in the cipher_and_key.txt. The format of cipher_and_key.txt is cipher in the first line, key in the second line. The decryption result will print to the console.
+The following command will decrypt the cipher by key. 
 ```
-python3 encdec_tool.py -d cipher_and_key.txt
+python3 encdec_tool.py -d cipher.enc -k a.key
 ```
 
 ## Crack
 crack.py
-+ -p Known plain text mode. Give a program a plain text, it will generate a cipher by itself and try to crack it.Convenient for Test.
-+ -T Test1 mode, the program will use dictionary_test1.txt to take advantage.
++ -p \<plaintexts file\> : Known plaintexts. Each line in the plaintexts file will be treated as a plaintext.
+```
+python3 crack.py test1.enc -p known_plaintexts.txt 
+```
++ -w \<Words file\> : Known words. Each line in the words file will be treated as a word. 
+```
+python3 crack.py test2.enc -w words.txt
+```
+
++ number : You can set the limit of attempts to the program. The number can be insert anywhere.
+```
+python3 crack.py test2.enc 1000 -w words.txt
+```
+
++ -a Auto mode : 
+This mode will take in a plaintext instead of cipher. The program will generate a random key & encrypt itself and try to crack it, which is convenient for test.
+```
+python3 crack.py -a test1_plain.txt -p known_plaintexts.txt
+```
+If you don't provide a filename after '-a', you will need to manually input plaintext.
+```
+python3 crack.py -a -p known_plaintexts.txt
+```
 
 ### Usage
-Interactive mode if doesn't provide an input file. Must provide a plain text longer than 50 words.
+
+Test1 (Known plaintexts): 
+If you already have a cipher:
 ```
-python3 crack.py -p
+python3 crack.py test1.enc -p known_plaintexts.txt
 ```
-Test1: 
-```
-python3 crack.py -p test1_plain.txt -T
-```
+
 Otherwise you can generate a cipher manually and crack it.
 ```
-sed -n '3,3p' dictionary_test1.txt > plain.txt  # extract line 3 from plaintext dictionary
-python3 encdec_tool.py -e plain.txt   # encrypt it, autosaved in cipher.txt
-cat cipher.txt > test1.txt
-python3 crack.py test1.txt -T 
+sed -n '3,3p' known_plaintexts.txt > plain.txt  # extract line 3 from known plaintexts.
+python3 encdec_tool.py -e plain.txt -k a.key  # encrypt it, autosaved to cipher.enc
+python3 crack.py cipher.enc -p known_plaintexts.txt
 ```
-Test2:
+
+Test2 (Known word dictionaries):
 ```
-python3 crack.py test2.txt
+python3 crack.py test2.enc -w words.txt
 ```
 Test2 (Set maximum attempts to 1000)
 ```
-python3 crack.py test2.txt 1000
+python3 crack.py test2.enc 1000 -w words.txt
+```
+
+Also I provide a way to generate a random plain from known words.
+```
+python3 plain_creator.py words.txt -n 500 > test2_plain.txt  # randomly choose 500 words from words.txt
+python3 encdec_tool.py -e test2_plain.txt -k a.key  # encrypt test2_plain.txt, autosave the result to cipher.enc
+cat cipher.enc > test2.enc  
+python3 crack.py test2.enc 1000 -w words.txt
 ```
