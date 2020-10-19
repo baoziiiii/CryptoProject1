@@ -6,7 +6,7 @@ encdec_tool.py
 + -d decryption
 
 ### Usage
-The following command will generate a random key(you must use -k to where to output the key) and use it to encrypt plain.txt. The cipher will be auto stored to 'cipher.enc'.
+The following command will generate a random key(you must use -k to specify where to output the key) and use it to encrypt plain.txt. The cipher will be auto stored to 'cipher.enc'.
 ```
 python3 encdec_tool.py -e plain.txt -k a.key
 ```
