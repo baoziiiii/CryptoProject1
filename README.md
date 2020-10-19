@@ -74,10 +74,13 @@ Test2 (Set maximum attempts to 1000)
 python3 crack.py test2.enc 1000 -w words.txt
 ```
 
-Also I provide a way to generate a random plain from known words.
+## Plain text generator(Optinal)
+
+Also I provide a way to generate a random plain from the known words file.
 ```
 python3 plain_creator.py words.txt -n 500 > test2_plain.txt  # randomly choose 500 words from words.txt
-python3 encdec_tool.py -e test2_plain.txt -k a.key  # encrypt test2_plain.txt, autosave the result to cipher.enc
-cat cipher.enc > test2.enc  
-python3 crack.py test2.enc 1000 -w words.txt
+```
+You can also use it to generate plaintext for known_plaintexts.txt.
+```
+python3 plain_creator.py words.txt 500 >> known_plaintexts.txt 
 ```
