@@ -63,9 +63,10 @@ python3 crack.py test1.enc -p known_plaintexts.txt
 
 Otherwise you can generate a cipher manually and crack it.
 ```
-sed -n '3,3p' known_plaintexts.txt > plain.txt  # extract line 3 from known plaintexts.
-python3 encdec_tool.py -e plain.txt -k a.key  # encrypt it, autosaved to cipher.enc
-python3 crack.py cipher.enc -p known_plaintexts.txt
+sed -n '3,3p' known_plaintexts.txt > test1_plain.txt  # extract line 3 (or any line you want)from known plaintexts.
+python3 encdec_tool.py -e test1_plain.txt -k a.key  # encrypt it, autosaved to cipher.enc
+cat cipher.enc > test1.enc 
+python3 crack.py test1.enc -p known_plaintexts.txt
 ```
 
 Test2 (Known word dictionaries):
