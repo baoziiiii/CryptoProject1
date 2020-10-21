@@ -91,7 +91,8 @@ class Individual:
         self.key_length = key_length
         self.gram_score = gram_score
         self.words = words
-        self.words_len_range = range(min(map(len, words)) ,max(map(len, words)) + 1)
+        if words:
+            self.words_len_range = range(min(map(len, words)) ,max(map(len, words)) + 1)
         if key:
             self.key = key
         else:
