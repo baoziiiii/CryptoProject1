@@ -1,4 +1,7 @@
 # CryptoProject1
+## Environment
++ python3
++ Install the requirements.txt with your pip
 
 ## Encryption and Decryption Tool(Optinal)
 encdec_tool.py

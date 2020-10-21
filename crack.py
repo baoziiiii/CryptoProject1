@@ -25,6 +25,7 @@ else:
     ssl._create_default_https_context = _create_unverified_https_context
 
 nltk.download('punkt')
+
 output_file = 'log{:%Y%m%d-%H%M%S}'.format(datetime.datetime.now())
 
 def fprint(line):
@@ -83,12 +84,14 @@ def fprint(line):
 class Individual:
 
     permutation_cipher = Permutation_Cipher()
-
-    def __init__(self, crypt, key_length, gram_score = None, key = None, plaintext = None):
+    word_pos = None
+    def __init__(self, crypt, key_length, gram_score = None, key = None, plaintext = None, words = None):
         self.fitness = 0
         self.crypt = crypt
         self.key_length = key_length
         self.gram_score = gram_score
+        self.words = words
+        self.words_len_range = range(min(map(len, words)) ,max(map(len, words)) + 1)
         if key:
             self.key = key
         else:
@@ -96,6 +99,24 @@ class Individual:
             shuffle(self.key)
         self.plaintext = plaintext
         # self.expected_fitness = self.calExpectedFitness2(plaintext)
+        if Individual.word_pos == None and words:
+            d = defaultdict(set)
+            def recur(ml, base):
+                for i in range(ml - base):
+                    for word in words:
+                        if i < len(word):
+                            d[base + i].add(word[i])
+                        elif i == len(word):
+                            d[base + i].add(' ')
+                        else:
+                            recur(ml, base + i)
+
+            recur(10, 0)
+            arr = [ 0 for _ in range(10)]
+            for k, v in d.items():
+                arr[k] = v
+            Individual.word_pos = arr
+            print(Individual.word_pos)                  
         self.calcFitness()
 
     def decrypt(self):
@@ -105,52 +126,61 @@ class Individual:
     def calcFitness(self):
         plain = self.decrypt()
         if self.plaintext == None:
-            self.fitness = self.calFitness_IoC(plain)
+            self.fitness = self.calFitness2(plain)
+            # self.fitness = self.calFitness_IoC(plain, Individual.word_pos)
         else:
             self.fitness = self.calFitness3(plain)
         return self.fitness
 
     def calFitness2(self, plain):
-        fitness = 0
+        fitness = 1000
+        prev = -1
+        bad_word_len = 1
         for i in range(len(plain)-8):
+            if plain[i] == ' ':
+                if i - prev - 1 not in self.words_len_range :
+                    bad_word_len += (i - prev - 1) 
+                prev = i
             p = plain[i:i+3] 
             for j in range(3,8):
                 p += plain[i+j]
                 if p in self.gram_score:
-                    fitness +=  self.gram_score[p]
+                    fitness += self.gram_score[p]
+        # print(bad_word_len)
+        # return fitness//(bad_word_len**2)
         return fitness
 
-    def calFitness_IoC(self, plain):
-        fitness = 0.001
-        cnt = Counter(plain)
-        if ' instrumentations ' in plain:
-            for c,F in self.permutation_cipher.frequency.items():
-                f = 0 if c not in cnt else cnt[c]
-                f = f/len(plain)*105
-                fitness += (f-F)**2/F
-
-        return fitness
+    def calFitness_IoC(self, plain, wp):
+        fitness = 1
+        for i in range(len(wp)):
+            if plain[i] not in wp[i]:
+                return 1
+            else:
+                fitness += 10000//(self.permutation_cipher.frequency[plain[i]] + 2**(10//(i+1)))
+        f2 = 0
+        if f2 == 1:
+            return 1
+        return fitness + f2
     
     def calFitness3(self, plain):
         fitness = 0
-        K0 = 300
         for i in range(len(plain)):
             if plain[i] == self.plaintext[i]:
                 pcf = self.permutation_cipher.frequency[plain[i]]
                 if pcf  == 1:
-                    fitness += 10000000
+                    fitness += 3000
                 elif pcf == 2:
-                    fitness += 500000
+                    fitness += 1000
                 elif pcf == 3:
-                    fitness += 100000 
+                    fitness += 300 
                 elif pcf == 4:
-                    fitness += 10000
+                    fitness += 30
                 elif pcf == 5:
-                    fitness += 5000 
+                    fitness += 15 
                 elif pcf == 6:
-                    fitness += 1000 
+                    fitness += 3 
                 else:
-                    fitness += K0 
+                    fitness += 1
         return fitness
 
     # def calExpectedFitness(self, plain):
@@ -192,16 +222,17 @@ class Individual:
 
 class Population:
     
-    def __init__(self, size, crypt, key_length, plaintext, gram_score):
+    def __init__(self, size, crypt, key_length, plaintext, gram_score, words):
         self.crypt = crypt
         self.key_length = key_length
         self.gram_score = gram_score
         self.plaintext = plaintext
         self.pop_size = size
+        self.words = words
         self.init()
 
     def init(self):
-        self.individuals = np.array([Individual(self.crypt, self.key_length, gram_score= self.gram_score ,plaintext = self.plaintext) for i in range(self.pop_size)])
+        self.individuals = np.array([Individual(self.crypt, self.key_length, gram_score= self.gram_score ,plaintext = self.plaintext, words = self.words) for i in range(self.pop_size)])
         self.individuals_dict = defaultdict(int)
         for individual in self.individuals:
             self.individuals_dict[tuple(individual.key)] += 1
@@ -256,7 +287,7 @@ class Population:
 
 
 class TranspositionGA:
-    def __init__(self, crypt, key_length, plaintext, population_size, gram_score):
+    def __init__(self, crypt, key_length, plaintext, population_size, gram_score, words):
         self.crypt = crypt
         self.key_length = key_length
         self.plaintext = plaintext
@@ -265,6 +296,7 @@ class TranspositionGA:
         self.permutation_cipher = Permutation_Cipher()
         self.f_table = sorted(self.permutation_cipher.frequency.items())
         self.tmp_table = list(range(len(self.f_table)))
+        self.words = words
         base = 0
         for i in range(len(self.f_table)):
             self.f_table[i] = (self.f_table[i][0],self.f_table[i][1],base)
@@ -275,7 +307,7 @@ class TranspositionGA:
     def init(self):
         self.generationCount = 0
         fprint("Initializing...Please wait")
-        self.population = Population(self.population_size, self.crypt, self.key_length,self.plaintext, self.gram_score)
+        self.population = Population(self.population_size, self.crypt, self.key_length,self.plaintext, self.gram_score, self.words)
         self.fittest = self.population.cal_fittest()
         fprint("Generation: {} Fittest: {}".format(self.generationCount,self.fittest.fitness))
 
@@ -284,6 +316,7 @@ class TranspositionGA:
         p = []
         offset = abs(self.population.individuals[self.population.get_least_fittest_index()].fitness)
         _sum = sum((i.fitness+offset)for i in self.population.individuals)
+
         for i in self.population.individuals:
             p.append((i.fitness+offset)/_sum)
         return np.random.choice(self.population.individuals,2, p = p,replace=False)
@@ -350,9 +383,9 @@ class TranspositionGA:
             else:
                 k += 1
         
-        c_i1 = Individual(self.crypt, self.key_length , self.gram_score, key = c1, plaintext = self.plaintext)
+        c_i1 = Individual(self.crypt, self.key_length , self.gram_score, key = c1, plaintext = self.plaintext, words = self.words)
         c_i1.calcFitness()
-        c_i2 = Individual(self.crypt, self.key_length , self.gram_score, key = c2, plaintext = self.plaintext)
+        c_i2 = Individual(self.crypt, self.key_length , self.gram_score, key = c2, plaintext = self.plaintext, words = self.words)
         c_i2.calcFitness()
 
         c_i_max= max(c_i1, c_i2, key=(lambda x:x.fitness))
@@ -459,9 +492,9 @@ class TranspositionGA:
 
         # fprint("p1:{}\np2:{}\nc1:{}\nc2:{}".format(p1,p2,c1,c2))
 
-        c_i1 = Individual(self.crypt, self.key_length , self.gram_score,  key = c1, plaintext = self.plaintext)
+        c_i1 = Individual(self.crypt, self.key_length , self.gram_score,  key = c1, plaintext = self.plaintext, words = self.words )
         c_i1.calcFitness()
-        c_i2 = Individual(self.crypt, self.key_length , self.gram_score, key = c2, plaintext = self.plaintext)
+        c_i2 = Individual(self.crypt, self.key_length , self.gram_score, key = c2, plaintext = self.plaintext, words = self.words )
         c_i2.calcFitness()
 
         c_i_max= max(c_i1, c_i2, key=(lambda x:x.fitness))
@@ -499,9 +532,9 @@ class TranspositionGA:
         ss2 = s2[2] + randint(0,s2[1]-1)
         cc2[ss1], cc2[ss2] = cc2[ss2], cc2[ss1]
 
-        cc_i1 = Individual(self.crypt, self.key_length , self.gram_score, key = cc1, plaintext = self.plaintext)
+        cc_i1 = Individual(self.crypt, self.key_length , self.gram_score, key = cc1, plaintext = self.plaintext, words = self.words )
         cc_i1.calcFitness()
-        cc_i2 = Individual(self.crypt, self.key_length , self.gram_score, key = cc2, plaintext = self.plaintext)
+        cc_i2 = Individual(self.crypt, self.key_length , self.gram_score, key = cc2, plaintext = self.plaintext, words = self.words )
         cc_i2.calcFitness()
 
         # if cc_i1.fitness > c_i_max.fitness or cc_i2.fitness > c_i_max.fitness:
@@ -567,7 +600,6 @@ def import_gram(text):
 # import gram from word list
 def import_word_gram(words):
     gram_score = {}
-    words = [word.strip() for word in words]
     wordstr = ' '.join(words)
     eg = nltk.everygrams(wordstr,min_len=4,max_len=8)
     fdist = nltk.FreqDist(eg)
@@ -576,12 +608,12 @@ def import_word_gram(words):
         k = ''.join(k)
         if k.count(' ') >= 2 or (k.count(' ')== 1 and k[0] != ' ' and k[-1] != ' '):
             continue
-        gram_score[k] = ((15**len(k))//100000)*v+1
-    for k in range(2,100):
-        gram_score[k*' '] = int(-(100*k))
-    for word in words:
-        if len(word) <= 6:
-            gram_score[' '+word+' '] = 100000
+        gram_score[k] = len(k)
+    # for k in range(2,100):
+    #     gram_score[k*' '] = int(-(100*k))
+    # for word in words:
+    #     if len(word) <= 6:
+    #         gram_score[' '+word+' '] = 100000
     # fprint(gram_score)
     return gram_score
 
@@ -621,7 +653,7 @@ def test1(crypt, gram_score = None):
         # expected_fitness = Individual(crypt, key_length = K ,gram_score = gram_score, key = key, plaintext = plain_to_check).calcFitness()
         # fprint("\nExpected fitness:{}\n".format(expected_fitness))
 
-        d = TranspositionGA(crypt, K, plain_to_check , population_size = 10, gram_score = gram_score)
+        d = TranspositionGA(crypt, K, plain_to_check , population_size = 10, gram_score = gram_score, words = None)
         _,fitness,_= d.run(generation_limit = 100, fitness_threshold = float('inf'),crossover_rate = 1, mutation_rate = 1 )
         results[i] = fitness
     
@@ -636,7 +668,8 @@ def test1(crypt, gram_score = None):
 
 def test2(words, crypt, generation_limit = 100000):
     K = 106
-    d = TranspositionGA(crypt, K, None , population_size = 40, gram_score = import_word_gram(words))
+    words = [word.strip() for word in words]
+    d = TranspositionGA(crypt, K, None , population_size = 40, gram_score = import_word_gram(words), words = words)
 
     # set generation_limit to the maximum attempts you want
     best_guess, fitness,_ = d.run(generation_limit = generation_limit, fitness_threshold = float('inf'),crossover_rate = 1, mutation_rate = 0.4 )

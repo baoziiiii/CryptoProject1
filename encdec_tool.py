@@ -47,8 +47,8 @@ if enc:
     print(crypt)
     with open('cipher.enc','w+') as f:
         f.write(",".join(list(map(str,crypt))))
+        print("Cipher text saved in cipher.enc")
     
-    print("Cipher text saved in cipher.txt")
 
 else:
     with open(input_file,'r') as f:
